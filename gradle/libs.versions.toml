@@ -1,0 +1,11 @@
+[versions]
+agp = "9.2.1"
+junit = "4.13.2"
+mlkitTranslate = "17.0.3"
+
+[libraries]
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+mlkit-translate = { group = "com.google.mlkit", name = "translate", version.ref = "mlkitTranslate" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
