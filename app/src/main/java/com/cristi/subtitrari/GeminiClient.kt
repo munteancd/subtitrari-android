@@ -19,13 +19,20 @@ private const val RATE_LIMIT_PAUSE_MS = 30_000L
 
 fun captionPrompt(language: String, earlier: List<String>, current: String): String = """
     Translate YouTube captions into natural $language, for an older viewer.
-    Captions may have no punctuation and may be cut mid-sentence. They may contain speech-recognition errors; infer the intended words from context.
-    Translate only CURRENT, all of it. Translate fragments as fragments, without completing them. Keep names, numbers, units and acronyms. Translate sound labels such as [Music]. Add no quotation marks, notes or information that is not there.
+    Captions may have no punctuation and may be cut mid-sentence. They may contain speech-recognition errors. You may fix a misheard ordinary word when the context makes it obvious.
+    Names: any word that may be a name of a person, place or brand, or that you do not recognise, must be copied letter by letter. Never replace it with a different name or drop it, even if it looks wrong.
+    Translate only CURRENT, all of it. Translate fragments as fragments, without completing them. Keep numbers, units and acronyms. Add no quotation marks, notes or information that is not there.
     If CURRENT is already $language, return it unchanged. Reply with the $language text only.
 
     EARLIER: ${earlier.joinToString(" ")}
     CURRENT: $current
 """.trimIndent()
+
+private val SOUND_LABEL = Regex("""\[[^\]]*]""")
+
+/** Removes labels such as [Music] or [Música]: they carry no speech, in whatever language they come. */
+fun withoutSoundLabels(caption: String): String =
+    caption.replace(SOUND_LABEL, " ").replace(Regex("""\s+"""), " ").trim()
 
 /** Returns the reply text, or null when the model gave none (a blocked or empty answer). */
 fun parseReply(json: String): String? {
@@ -118,7 +125,7 @@ class GeminiClient(private val apiKey: String) {
         .put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
         .put(
             "generationConfig",
-            JSONObject().put("temperature", 0.2).put("thinkingConfig", JSONObject().put("thinkingLevel", "minimal")),
+            JSONObject().put("temperature", 0.1).put("thinkingConfig", JSONObject().put("thinkingLevel", "minimal")),
         )
         .toString()
 }

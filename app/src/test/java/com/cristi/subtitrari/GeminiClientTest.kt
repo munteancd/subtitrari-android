@@ -14,6 +14,25 @@ class GeminiClientTest {
         assertTrue(prompt.contains("natural Hungarian"))
     }
 
+    @Test fun `prompt protects names`() {
+        assertTrue(captionPrompt("Romanian", emptyList(), "x").contains("copied letter by letter"))
+    }
+
+    @Test fun `sound labels are removed wherever they are`() {
+        assertEquals("otros si te apetece", withoutSoundLabels("[Música] otros si te apetece"))
+        assertEquals("reposar unos 3 minutos", withoutSoundLabels("reposar unos 3 minutos [Música]"))
+        assertEquals("a b", withoutSoundLabels("a [Music] b"))
+    }
+
+    @Test fun `caption with only a sound label is empty`() {
+        assertEquals("", withoutSoundLabels("[Music]"))
+    }
+
+    @Test fun `laughter in round brackets and ordinary text stay`() {
+        assertEquals("(Laughter)", withoutSoundLabels("(Laughter)"))
+        assertEquals("the tap is leaking", withoutSoundLabels("the tap is leaking"))
+    }
+
     @Test fun `reply text is extracted and trimmed`() {
         val json = """{"candidates":[{"content":{"parts":[{"text":" robinetul \n"}]}}]}"""
         assertEquals("robinetul", parseReply(json))

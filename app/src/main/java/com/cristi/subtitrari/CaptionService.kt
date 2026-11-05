@@ -158,33 +158,36 @@ class CaptionService : AccessibilityService() {
             display(text, it)
             return
         }
+        val speech = withoutSoundLabels(text)
+        if (speech.isEmpty()) return showOriginal(request)
+
         val earlier = recentCaptions.toList()
-        recentCaptions.addLast(text)
+        recentCaptions.addLast(speech)
         if (recentCaptions.size > CONTEXT_CAPTIONS) recentCaptions.removeFirst()
 
         val target = language
         gemini?.translate(
             target.englishName,
-            text,
+            speech,
             earlier,
             SystemClock.uptimeMillis(),
             onResult = { deliver(request, target, text, it, "gemini") },
-            onFailure = { translateOnDevice(request, target, text) },
-        ) ?: translateOnDevice(request, target, text)
+            onFailure = { translateOnDevice(request, target, text, speech) },
+        ) ?: translateOnDevice(request, target, text, speech)
     }
 
     /** ML Kit here only knows English. For anything else the original caption is left showing. */
-    private fun translateOnDevice(request: Long, target: CaptionLanguage, text: String) {
+    private fun translateOnDevice(request: Long, target: CaptionLanguage, text: String, speech: String) {
         val client = translator
         val identifier = languageId
         if (client == null || identifier == null || target != language) return showOriginal(request)
-        identifier.identifyLanguage(text)
+        identifier.identifyLanguage(speech)
             .addOnSuccessListener { source ->
                 if (source != TranslateLanguage.ENGLISH && source != "und") {
                     showOriginal(request)
                     return@addOnSuccessListener
                 }
-                client.translate(text)
+                client.translate(speech)
                     .addOnSuccessListener { deliver(request, target, text, it, "mlkit") }
                     .addOnFailureListener {
                         Log.w(TAG, "translation failed", it)
