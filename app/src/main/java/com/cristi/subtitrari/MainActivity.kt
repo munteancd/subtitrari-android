@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -19,6 +20,8 @@ import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
 import com.google.mlkit.nl.translate.Translator
+
+private const val PAGE_COLOR = 0xFF18181A.toInt()
 
 /** Choices (language, colour, size) with a live preview, then the one-time setup. */
 class MainActivity : Activity() {
@@ -34,14 +37,20 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settings = CaptionSettings(this)
+        @Suppress("DEPRECATION")
+        window.run {
+            statusBarColor = PAGE_COLOR
+            navigationBarColor = PAGE_COLOR
+        }
 
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(64), dp(16), dp(32))
+            setPadding(dp(16), dp(48), dp(16), dp(72))
         }
         fun label(value: String = "", size: Float = 17f) = TextView(this).apply {
             text = value
             setTextSize(TypedValue.COMPLEX_UNIT_SP, size)
+            setTextColor(0xFFFFFFFF.toInt())
             setPadding(0, dp(8), 0, dp(8))
             page.addView(this)
         }
@@ -87,7 +96,10 @@ class MainActivity : Activity() {
         heading("Folosire")
         label("Deschide un clip în YouTube și pornește subtitrările de la butonul CC.")
 
-        setContentView(ScrollView(this).apply { addView(page) })
+        setContentView(ScrollView(this).apply {
+            setBackgroundColor(PAGE_COLOR)
+            addView(page)
+        })
         refreshStyle()
         downloadModel()
     }
@@ -104,11 +116,24 @@ class MainActivity : Activity() {
     }
 
     private fun languagePicker() = Spinner(this).apply {
-        adapter = ArrayAdapter(
+        minimumHeight = dp(48)
+        adapter = object : ArrayAdapter<String>(
             this@MainActivity,
-            android.R.layout.simple_spinner_dropdown_item,
+            android.R.layout.simple_spinner_item,
             LANGUAGES.map { it.label },
-        )
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                (super.getView(position, convertView, parent) as TextView).apply {
+                    setTextColor(0xFFFFFFFF.toInt())
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+                }
+
+            // The theme's "selected" colour is nearly invisible on the dark list.
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
+                (super.getDropDownView(position, convertView, parent) as TextView).apply {
+                    setTextColor(0xFFFFFFFF.toInt())
+                }
+        }.apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
         setSelection(LANGUAGES.indexOf(settings.language))
         onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {

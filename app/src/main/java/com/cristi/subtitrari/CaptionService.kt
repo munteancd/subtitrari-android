@@ -64,6 +64,8 @@ class CaptionService : AccessibilityService() {
         settings.prefs.registerOnSharedPreferenceChangeListener(settingsListener)
         applyStyle()
         useLanguage(settings.language)
+        // YouTube may already be in front, and then no window change will announce it.
+        startPollingIfYouTube()
     }
 
     private fun applyStyle() = overlay.setStyle(settings.color.argb, settings.size.sp)
@@ -80,7 +82,9 @@ class CaptionService : AccessibilityService() {
             ?.addOnFailureListener { Log.w(TAG, "translation model not ready", it) }
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent) {
+    override fun onAccessibilityEvent(event: AccessibilityEvent) = startPollingIfYouTube()
+
+    private fun startPollingIfYouTube() {
         if (!polling && rootInActiveWindow?.packageName?.toString() == YOUTUBE) {
             polling = true
             noRootTicks = 0
