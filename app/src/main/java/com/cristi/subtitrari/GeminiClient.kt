@@ -16,10 +16,10 @@ private const val CONNECT_TIMEOUT_MS = 1500
 private const val READ_TIMEOUT_MS = 3500
 private const val RATE_LIMIT_PAUSE_MS = 30_000L
 
-fun captionPrompt(earlier: List<String>, current: String): String = """
-    Translate YouTube captions into natural Romanian, for an older viewer.
+fun captionPrompt(language: String, earlier: List<String>, current: String): String = """
+    Translate YouTube captions into natural $language, for an older viewer.
     Captions may have no punctuation and may be cut mid-sentence. They may contain speech-recognition errors; infer the intended words from context.
-    Translate only CURRENT, all of it. Translate fragments as fragments. If CURRENT is already Romanian, return it unchanged. Reply with the Romanian text only.
+    Translate only CURRENT, all of it. Translate fragments as fragments. If CURRENT is already $language, return it unchanged. Reply with the $language text only.
 
     EARLIER: ${earlier.joinToString(" ")}
     CURRENT: $current
@@ -48,6 +48,7 @@ class GeminiClient(private val apiKey: String) {
     private val cooldown = Cooldown(RATE_LIMIT_PAUSE_MS)
 
     fun translate(
+        language: String,
         current: String,
         earlier: List<String>,
         now: Long,
@@ -60,7 +61,7 @@ class GeminiClient(private val apiKey: String) {
         }
         worker.execute {
             val reply = try {
-                request(captionPrompt(earlier, current), now)
+                request(captionPrompt(language, earlier, current), now)
             } catch (e: IOException) {
                 Log.w("Subtitrari", "gemini: ${e.javaClass.simpleName}")
                 null

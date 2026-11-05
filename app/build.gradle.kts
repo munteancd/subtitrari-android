@@ -35,6 +35,7 @@ android {
 
 dependencies {
     implementation(libs.mlkit.translate)
+    implementation(libs.mlkit.language.id)
     testImplementation(libs.junit)
     testImplementation("org.json:json:20240303")
 }

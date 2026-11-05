@@ -1,6 +1,7 @@
 package com.cristi.subtitrari
 
 import android.accessibilityservice.AccessibilityService
+import android.content.SharedPreferences
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -8,6 +9,8 @@ import android.os.SystemClock
 import android.util.Log
 import android.util.LruCache
 import android.view.accessibility.AccessibilityEvent
+import com.google.mlkit.nl.languageid.LanguageIdentification
+import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translator
 
 private const val TAG = "Subtitrari"
@@ -36,6 +39,15 @@ class CaptionService : AccessibilityService() {
     private var lastCaptionAt = 0L
     private var latestRequest = 0L
     private val captionBounds = Rect()
+    private val languageId by lazy { LanguageIdentification.getClient() }
+    private lateinit var settings: CaptionSettings
+    private var language = LANGUAGES[0]
+
+    /** Kept in a field: SharedPreferences holds listeners weakly. */
+    private val settingsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        applyStyle()
+        if (key == CaptionSettings.KEY_LANGUAGE) useLanguage(settings.language)
+    }
 
     private val poll = object : Runnable {
         override fun run() {
@@ -48,11 +60,24 @@ class CaptionService : AccessibilityService() {
         releaseAll()
         overlay = CaptionOverlay(this)
         gemini = GeminiClient(BuildConfig.GEMINI_API_KEY)
-        translator = newTranslator().also { client ->
-            client.downloadModelIfNeeded(wifiOnly)
-                .addOnSuccessListener { Log.i(TAG, "translation model ready") }
-                .addOnFailureListener { Log.w(TAG, "translation model not ready", it) }
-        }
+        settings = CaptionSettings(this)
+        settings.prefs.registerOnSharedPreferenceChangeListener(settingsListener)
+        applyStyle()
+        useLanguage(settings.language)
+    }
+
+    private fun applyStyle() = overlay.setStyle(settings.color.argb, settings.size.sp)
+
+    private fun useLanguage(chosen: CaptionLanguage) {
+        language = chosen
+        cache.evictAll()
+        recentCaptions.clear()
+        latestRequest++
+        translator?.close()
+        translator = newTranslator(chosen)
+        translator?.downloadModelIfNeeded(wifiOnly)
+            ?.addOnSuccessListener { Log.i(TAG, "translation model ready: ${chosen.code}") }
+            ?.addOnFailureListener { Log.w(TAG, "translation model not ready", it) }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -73,6 +98,7 @@ class CaptionService : AccessibilityService() {
     /** The system can reconnect a running service, so this also runs before each new setup. */
     private fun releaseAll() {
         stopPolling()
+        if (::settings.isInitialized) settings.prefs.unregisterOnSharedPreferenceChangeListener(settingsListener)
         translator?.close()
         translator = null
         gemini?.close()
@@ -128,23 +154,41 @@ class CaptionService : AccessibilityService() {
         recentCaptions.addLast(text)
         if (recentCaptions.size > CONTEXT_CAPTIONS) recentCaptions.removeFirst()
 
+        val target = language
         gemini?.translate(
+            target.englishName,
             text,
             earlier,
             SystemClock.uptimeMillis(),
-            onResult = { deliver(request, text, it, "gemini") },
-            onFailure = { translateOnDevice(request, text) },
-        ) ?: translateOnDevice(request, text)
+            onResult = { deliver(request, target, text, it, "gemini") },
+            onFailure = { translateOnDevice(request, target, text) },
+        ) ?: translateOnDevice(request, target, text)
     }
 
-    private fun translateOnDevice(request: Long, text: String) {
-        val client = translator ?: return
-        client.translate(text)
-            .addOnSuccessListener { deliver(request, text, it, "mlkit") }
-            .addOnFailureListener { Log.w(TAG, "translation failed", it) }
+    /** ML Kit here only knows English. For anything else the original caption is left showing. */
+    private fun translateOnDevice(request: Long, target: CaptionLanguage, text: String) {
+        val client = translator
+        if (client == null || target != language) return showOriginal(request)
+        languageId.identifyLanguage(text)
+            .addOnSuccessListener { source ->
+                if (source != TranslateLanguage.ENGLISH && source != "und") {
+                    showOriginal(request)
+                    return@addOnSuccessListener
+                }
+                client.translate(text)
+                    .addOnSuccessListener { deliver(request, target, text, it, "mlkit") }
+                    .addOnFailureListener { Log.w(TAG, "translation failed", it) }
+            }
+            .addOnFailureListener { Log.w(TAG, "language check failed", it) }
     }
 
-    private fun deliver(request: Long, text: String, translated: String, source: String) {
+    private fun showOriginal(request: Long) {
+        if (request == latestRequest) overlay.hide()
+    }
+
+    private fun deliver(request: Long, target: CaptionLanguage, text: String, translated: String, source: String) {
+        // The language may have changed while this was in flight.
+        if (target != language) return
         cache.put(text, translated)
         Log.d(TAG, "[$source] \"$text\" -> \"$translated\"")
         // A slower older result must not overwrite a newer caption.

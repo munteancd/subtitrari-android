@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Subtitrări RO</string>
-    <string name="service_description">Citește subtitrările din aplicația YouTube și afișează peste ele traducerea în română. Textul subtitrărilor este trimis la Google Gemini pentru traducere. Dacă Gemini nu răspunde, este tradus pe telefon.</string>
+    <string name="app_name">Subtitrări</string>
+    <string name="service_description">Citește subtitrările din aplicația YouTube și afișează peste ele traducerea în limba aleasă. Textul subtitrărilor este trimis la Google Gemini pentru traducere. Dacă Gemini nu răspunde, este tradus pe telefon.</string>
 </resources>

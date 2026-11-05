@@ -33,12 +33,15 @@ class CaptionOverlay(service: AccessibilityService) {
     private val band = TextView(service).apply {
         // Fully opaque: the original caption showed through a translucent band.
         setBackgroundColor(0xFF000000.toInt())
-        setTextColor(0xFFFFFFFF.toInt())
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
         gravity = Gravity.CENTER
         setPadding(padding * 2, padding, padding * 2, padding)
     }
     private var attached = false
+
+    fun setStyle(color: Int, sizeSp: Float) {
+        band.setTextColor(color)
+        band.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
+    }
 
     fun show(text: String, caption: Rect) {
         band.text = text

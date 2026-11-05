@@ -8,9 +8,10 @@ import org.junit.Test
 
 class GeminiClientTest {
     @Test fun `prompt carries the earlier captions and the current one`() {
-        val prompt = captionPrompt(listOf("first", "second"), "third")
+        val prompt = captionPrompt("Hungarian", listOf("first", "second"), "third")
         assertTrue(prompt.contains("EARLIER: first second"))
         assertTrue(prompt.contains("CURRENT: third"))
+        assertTrue(prompt.contains("natural Hungarian"))
     }
 
     @Test fun `reply text is extracted and trimmed`() {
