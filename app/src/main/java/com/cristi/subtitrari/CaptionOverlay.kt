@@ -5,10 +5,25 @@ import android.graphics.PixelFormat
 import android.graphics.Point
 import android.graphics.Rect
 import android.os.Build
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.TextView
+
+/** The band's text: the translation, optionally under a smaller white original. */
+fun captionText(original: String, translated: String, showOriginal: Boolean): CharSequence {
+    if (!showOriginal) return translated
+    return SpannableStringBuilder(original).apply {
+        val style = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        setSpan(RelativeSizeSpan(0.8f), 0, length, style)
+        setSpan(ForegroundColorSpan(0xFFFFFFFF.toInt()), 0, length, style)
+        append("\n").append(translated)
+    }
+}
 
 /** The band drawn over YouTube. It never takes touches, so the player works normally beneath it. */
 class CaptionOverlay(service: AccessibilityService) {
@@ -43,7 +58,7 @@ class CaptionOverlay(service: AccessibilityService) {
         band.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
     }
 
-    fun show(text: String, caption: Rect) {
+    fun show(text: CharSequence, caption: Rect) {
         band.text = text
         place(caption)
     }

@@ -10,6 +10,7 @@ import android.util.Log
 import android.util.LruCache
 import android.view.accessibility.AccessibilityEvent
 import com.google.mlkit.nl.languageid.LanguageIdentification
+import com.google.mlkit.nl.languageid.LanguageIdentifier
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translator
 
@@ -39,7 +40,7 @@ class CaptionService : AccessibilityService() {
     private var lastCaptionAt = 0L
     private var latestRequest = 0L
     private val captionBounds = Rect()
-    private val languageId by lazy { LanguageIdentification.getClient() }
+    private var languageId: LanguageIdentifier? = null
     private lateinit var settings: CaptionSettings
     private var language = LANGUAGES[0]
 
@@ -60,6 +61,7 @@ class CaptionService : AccessibilityService() {
         releaseAll()
         overlay = CaptionOverlay(this)
         gemini = GeminiClient(BuildConfig.GEMINI_API_KEY)
+        languageId = LanguageIdentification.getClient()
         settings = CaptionSettings(this)
         settings.prefs.registerOnSharedPreferenceChangeListener(settingsListener)
         applyStyle()
@@ -107,6 +109,8 @@ class CaptionService : AccessibilityService() {
         translator = null
         gemini?.close()
         gemini = null
+        languageId?.close()
+        languageId = null
     }
 
     private fun stopPolling() {
@@ -151,7 +155,7 @@ class CaptionService : AccessibilityService() {
     private fun translate(text: String) {
         val request = ++latestRequest
         cache.get(text)?.let {
-            overlay.show(it, captionBounds)
+            display(text, it)
             return
         }
         val earlier = recentCaptions.toList()
@@ -172,8 +176,9 @@ class CaptionService : AccessibilityService() {
     /** ML Kit here only knows English. For anything else the original caption is left showing. */
     private fun translateOnDevice(request: Long, target: CaptionLanguage, text: String) {
         val client = translator
-        if (client == null || target != language) return showOriginal(request)
-        languageId.identifyLanguage(text)
+        val identifier = languageId
+        if (client == null || identifier == null || target != language) return showOriginal(request)
+        identifier.identifyLanguage(text)
             .addOnSuccessListener { source ->
                 if (source != TranslateLanguage.ENGLISH && source != "und") {
                     showOriginal(request)
@@ -181,11 +186,18 @@ class CaptionService : AccessibilityService() {
                 }
                 client.translate(text)
                     .addOnSuccessListener { deliver(request, target, text, it, "mlkit") }
-                    .addOnFailureListener { Log.w(TAG, "translation failed", it) }
+                    .addOnFailureListener {
+                        Log.w(TAG, "translation failed", it)
+                        showOriginal(request)
+                    }
             }
-            .addOnFailureListener { Log.w(TAG, "language check failed", it) }
+            .addOnFailureListener {
+                Log.w(TAG, "language check failed", it)
+                showOriginal(request)
+            }
     }
 
+    /** Takes the band away so a stale translation doesn't cover the caption now on screen. */
     private fun showOriginal(request: Long) {
         if (request == latestRequest) overlay.hide()
     }
@@ -196,6 +208,10 @@ class CaptionService : AccessibilityService() {
         cache.put(text, translated)
         Log.d(TAG, "[$source] \"$text\" -> \"$translated\"")
         // A slower older result must not overwrite a newer caption.
-        if (request == latestRequest && polling) overlay.show(translated, captionBounds)
+        if (request == latestRequest && polling) display(text, translated)
+    }
+
+    private fun display(original: String, translated: String) {
+        overlay.show(captionText(original, translated, settings.showOriginal), captionBounds)
     }
 }

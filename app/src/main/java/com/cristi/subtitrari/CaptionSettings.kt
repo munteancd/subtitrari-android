@@ -71,9 +71,14 @@ class CaptionSettings(context: Context) {
         get() = sizeFor(prefs.getFloat(KEY_SIZE, SIZES[1].sp))
         set(value) = prefs.edit().putFloat(KEY_SIZE, value.sp).apply()
 
+    var showOriginal: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_ORIGINAL, false)
+        set(value) = prefs.edit().putBoolean(KEY_SHOW_ORIGINAL, value).apply()
+
     companion object {
         const val KEY_LANGUAGE = "language"
         private const val KEY_COLOR = "color"
         private const val KEY_SIZE = "size"
+        private const val KEY_SHOW_ORIGINAL = "show_original"
     }
 }

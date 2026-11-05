@@ -60,12 +60,14 @@ class MainActivity : Activity() {
         label("Traduce subtitrările din aplicația YouTube.")
 
         preview = TextView(this).apply {
-            text = "Așa va arăta subtitrarea"
             gravity = Gravity.CENTER
             setBackgroundColor(0xFF000000.toInt())
             setPadding(dp(8), dp(12), dp(8), dp(12))
             page.addView(this)
         }
+
+        heading("Ce se afișează")
+        page.addView(displayPicker())
 
         heading("Limba")
         page.addView(languagePicker())
@@ -179,7 +181,24 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun displayPicker() = RadioGroup(this).apply {
+        orientation = RadioGroup.HORIZONTAL
+        listOf("Doar traducerea" to false, "Și originalul" to true).forEach { (name, value) ->
+            val button = RadioButton(this@MainActivity).apply {
+                text = name
+                setPadding(dp(4), 0, dp(16), 0)
+                setOnClickListener {
+                    settings.showOriginal = value
+                    refreshStyle()
+                }
+            }
+            addView(button)
+            button.isChecked = value == settings.showOriginal
+        }
+    }
+
     private fun refreshStyle() {
+        preview.text = captionText("This is the original caption", "Așa va arăta subtitrarea", settings.showOriginal)
         preview.setTextColor(settings.color.argb)
         preview.setTextSize(TypedValue.COMPLEX_UNIT_SP, settings.size.sp)
         swatches.forEach { (choice, view) ->

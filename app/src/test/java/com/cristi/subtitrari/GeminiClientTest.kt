@@ -31,10 +31,25 @@ class GeminiClientTest {
         assertNull(parseReply("""{"candidates":[{"finishReason":"SAFETY"}]}"""))
     }
 
+    @Test fun `retry delay is read from the error details`() {
+        val body = """{"error":{"code":429,"details":[{"@type":"QuotaFailure"},{"retryDelay":"59495s"}]}}"""
+        assertEquals(59_495_000L, parseRetryDelayMs(body))
+    }
+
+    @Test fun `fractional retry delay is kept`() {
+        val body = """{"error":{"details":[{"retryDelay":"4.5s"}]}}"""
+        assertEquals(4_500L, parseRetryDelayMs(body))
+    }
+
+    @Test fun `missing or unreadable retry delay gives null`() {
+        assertNull(parseRetryDelayMs("""{"error":{"code":429}}"""))
+        assertNull(parseRetryDelayMs("not json"))
+    }
+
     @Test fun `cooldown lasts for its pause and then ends`() {
-        val cooldown = Cooldown(60_000)
+        val cooldown = Cooldown()
         assertFalse(cooldown.active(1_000))
-        cooldown.trip(1_000)
+        cooldown.trip(1_000, 60_000)
         assertTrue(cooldown.active(60_999))
         assertFalse(cooldown.active(61_000))
     }

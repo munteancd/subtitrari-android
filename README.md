@@ -16,6 +16,7 @@ If Gemini doesn't answer, ML Kit translates on the phone. It is weaker and handl
 
 ## What you can choose
 
+- Translation only, or the original above it
 - Language to translate into (22 languages)
 - Text colour
 - Text size
@@ -66,6 +67,7 @@ Dacă Gemini nu răspunde, traduce ML Kit pe telefon. Traducerea e mai slabă ș
 
 ### Ce poți alege
 
+- Doar traducerea sau și originalul deasupra ei
 - Limba în care se traduce (22 de limbi)
 - Culoarea textului
 - Mărimea textului
